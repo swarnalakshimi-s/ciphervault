@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CipherVault — Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .key-info-card {
+            background: rgba(var(--accent-rgb,99,102,241),.08);
+            border: 1px solid rgba(var(--accent-rgb,99,102,241),.25);
+            border-radius: 12px;
+            padding: 14px 18px;
+            margin-bottom: 24px;
+            font-size: .82rem;
+            color: var(--text-muted,#94a3b8);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .key-info-card svg { flex-shrink:0; color: var(--accent,#6366f1); }
+        .key-info-card strong { color: var(--text,#e2e8f0); }
+        .verify-result { margin-top:16px; padding:14px 18px; border-radius:10px; display:flex; align-items:center; gap:12px; }
+        .verify-result.hidden { display:none; }
+        .verify-result.valid   { background:rgba(16,185,129,.12); border:1px solid rgba(16,185,129,.3); color:#10b981; }
+        .verify-result.invalid { background:rgba(239,68,68,.12);  border:1px solid rgba(239,68,68,.3);  color:#ef4444; }
+        .verify-result.warning { background:rgba(245,158,11,.12); border:1px solid rgba(245,158,11,.3); color:#f59e0b; }
+        .verify-result svg { width:24px; height:24px; flex-shrink:0; }
+        .verify-result div strong { display:block; margin-bottom:2px; }
+        .verify-result div p { margin:0; font-size:.85rem; opacity:.85; }
+        .spinner { width:20px; height:20px; border:2px solid rgba(255,255,255,.2); border-top-color:var(--accent,#6366f1); border-radius:50%; animation:spin .7s linear infinite; display:inline-block; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .download-link { display:inline-flex; align-items:center; gap:6px; margin-top:10px; padding:8px 14px; background:var(--accent,#6366f1); color:#fff; border-radius:8px; text-decoration:none; font-size:.85rem; font-weight:600; }
+        .download-link:hover { opacity:.85; }
+        /* Tab panel visibility */
+        .tool-panel { display:none; }
+        .tool-panel.active { display:block; }
+        /* File drop zone */
+        .file-drop { cursor:pointer; }
+    </style>
+</head>
+<body class="dashboard-page">
+    <div class="grid-overlay"></div>
+    <div class="noise-overlay"></div>
+
+    <!-- Top Navigation -->
+    <nav class="topnav">
+        <div class="nav-brand">
+            <div class="logo-mark small">
+                <svg width="24" height="24" viewBox="0 0 40 40" fill="none">
+                    <rect x="8" y="16" width="24" height="18" rx="3" stroke="currentColor" stroke-width="2.5"/>
+                    <path d="M13 16V12a7 7 0 0114 0v4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                    <circle cx="20" cy="24" r="3" fill="currentColor"/>
+                    <line x1="20" y1="27" x2="20" y2="30" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                </svg>
+            </div>
+            <span class="brand-name">CipherVault</span>
+        </div>
+        <div class="nav-right">
+            <div class="user-chip">
+                <div class="user-avatar">{{ current_user.username[0].upper() }}</div>
+                <span>{{ current_user.username }}</span>
+            </div>
+            <a href="{{ url_for('logout') }}" class="btn-logout">
+                <svg viewBox="0 0 20 20" fill="none"><path d="M13 3h4a1 1 0 011 1v12a1 1 0 01-1 1h-4M9 14l4-4-4-4M13 10H3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Sign out
+            </a>
+        </div>
+    </nav>
+
+    <main class="dashboard-main">
+        <!-- Hero Header -->
+        <div class="dashboard-hero">
+            <div class="hero-tag">
+                <span class="status-dot"></span>
+                Vault Online
+            </div>
+            <h2>Cryptography Suite</h2>
+            <p>Encrypt, decrypt, sign, and verify your files using ChaCha20-Poly1305 with RSA-PSS — military-grade authenticated encryption.</p>
+        </div>
+
+        <!-- Tool Tabs -->
+        <div class="tool-tabs">
+            <button class="tab-btn active" type="button" data-tab="encrypt">
+                <svg viewBox="0 0 20 20" fill="none"><rect x="3" y="9" width="14" height="10" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M7 9V7a3 3 0 016 0v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                Encrypt
+            </button>
+            <button class="tab-btn" type="button" data-tab="decrypt">
+                <svg viewBox="0 0 20 20" fill="none"><rect x="3" y="9" width="14" height="10" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M7 9V7a3 3 0 016 0v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="7" y1="4" x2="5" y2="6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                Decrypt
+            </button>
+            <button class="tab-btn" type="button" data-tab="enc-sign">
+                <svg viewBox="0 0 20 20" fill="none"><rect x="3" y="9" width="10" height="8" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M6 9V7a4 4 0 018 0v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M14 13l2-1 2-2a1 1 0 00-1.4-1.4L15 11l-1 2z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+                Encrypt+Sign
+            </button>
+            <button class="tab-btn" type="button" data-tab="dec-verify">
+                <svg viewBox="0 0 20 20" fill="none"><rect x="3" y="9" width="10" height="8" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M6 9V7a4 4 0 018 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M13 14l2 2 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Decrypt+Verify
+            </button>
+        </div>
+
+        <!-- Panel: Encrypt -->
+        <div class="tool-panel active" id="tab-encrypt">
+            <div class="panel-inner">
+                <div class="panel-info">
+                    <h3>Encrypt File</h3>
+                    <p>Secure your file using <strong>ChaCha20-Poly1305</strong> with PBKDF2 key derivation.
+                       Your <strong>RSA public key</strong> (generated at registration) is used automatically
+                       as the symmetric password — no manual key input needed.</p>
+                    <div class="algo-badge">
+                        <span>ChaCha20-Poly1305</span>
+                        <span>PBKDF2-SHA256</span>
+                        <span>RSA Public Key</span>
+                    </div>
+                </div>
+                <div class="key-info-card">
+                    <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+                        <path d="M9 14.5A5.5 5.5 0 109 3.5a5.5 5.5 0 000 11zm0 0l2.5 2.5M13.5 14l2 2"
+                              stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                    <span>Encryption key: your <strong>RSA public key</strong> from registration
+                          (stored securely server-side)</span>
+                </div>
+                <form action="{{ url_for('encrypt_route') }}" method="POST" enctype="multipart/form-data" class="tool-form">
+                    <div class="form-group">
+                        <label>File to Encrypt</label>
+                        <div class="file-drop" id="encDrop">
+                            <div class="file-drop-icon">
+                                <svg viewBox="0 0 40 40" fill="none">
+                                    <path d="M20 26V14M14 20l6-6 6 6" stroke="currentColor" stroke-width="2"
+                                          stroke-linecap="round" stroke-linejoin="round"/>
+                                    <rect x="6" y="6" width="28" height="28" rx="4" stroke="currentColor"
+                                          stroke-width="1.5" stroke-dasharray="4 3"/>
+                                </svg>
+                            </div>
+                            <p class="file-drop-text">Drop file here or <span>browse</span></p>
+                            <p class="file-drop-hint" id="encFileName">Any file type supported</p>
+                        </div>
+                        <input type="file" id="encFile" name="file" required style="display:none;"
+                               onchange="showFileName(this, 'encFileName')">
+                    </div>
+                    <button type="submit" class="btn-primary full">
+                        <svg viewBox="0 0 20 20" fill="none">
+                            <rect x="3" y="9" width="14" height="10" rx="2" stroke="currentColor" stroke-width="1.5"/>
+                            <path d="M7 9V7a3 3 0 016 0v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                        Encrypt &amp; Download
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Panel: Decrypt -->
+        <div class="tool-panel" id="tab-decrypt">
+            <div class="panel-inner">
+                <div class="panel-info">
+                    <h3>Decrypt File</h3>
+                    <p>Restore an encrypted <code>.enc</code> file. Enter the <strong>sender's username</strong> — decryption uses their RSA public key, which was used to encrypt the file.</p>
+                    <div class="algo-badge">
+                        <span>Authenticated Decrypt</span>
+                        <span>Tamper Detection</span>
+                        <span>Sender's RSA Public Key</span>
+                    </div>
+                </div>
+                <div class="key-info-card">
+                    <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M9 14.5A5.5 5.5 0 109 3.5a5.5 5.5 0 000 11zm0 0l2.5 2.5M13.5 14l2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                    <span>The sender's <strong>RSA public key</strong> is looked up by username and used as the decryption key</span>
+                </div>
+                <form class="tool-form" id="decryptForm">
+                    <div class="form-group">
+                        <label for="decSender">Sender's Username</label>
+                        <div class="input-wrapper">
+                            <svg class="input-icon" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="3.5" stroke="currentColor" stroke-width="1.5"/><path d="M3 17c0-3.314 3.134-6 7-6s7 2.686 7 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                            <input type="text" id="decSender" name="sender_username" placeholder="Enter the sender's username" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Encrypted File (.enc)</label>
+                        <div class="file-drop">
+                            <div class="file-drop-icon">
+                                <svg viewBox="0 0 40 40" fill="none"><path d="M20 14v12M14 20l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><rect x="6" y="6" width="28" height="28" rx="4" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 3"/></svg>
+                            </div>
+                            <p class="file-drop-text">Drop .enc file here or <span>browse</span></p>
+                            <p class="file-drop-hint" id="decFileName">Accepts .enc files</p>
+                        </div>
+                            <input type="file" id="decFile" name="file" required style="display:none;" onchange="showFileName(this, 'decFileName')">
+                    </div>
+                    <button type="button" class="btn-accent full" onclick="decryptFile()">
+                        <svg viewBox="0 0 20 20" fill="none"><path d="M3 10h14M10 4l7 6-7 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        Decrypt & Download
+                    </button>
+                    <div class="verify-result hidden" id="decryptResult"></div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Panel: Encrypt + Sign -->
+        <div class="tool-panel" id="tab-enc-sign">
+            <div class="panel-inner">
+                <div class="panel-info">
+                    <h3>Encrypt + Sign File</h3>
+                    <p>Encrypt your file with <strong>ChaCha20-Poly1305</strong> (using your RSA public key), then attach an <strong>RSA-PSS digital signature</strong> using your private key. The output <code>.encsig</code> file is both encrypted and authenticity-proven.</p>
+                    <div class="algo-badge">
+                        <span>ChaCha20-Poly1305</span>
+                        <span>RSA-PSS</span>
+                        <span>SHA-256</span>
+                        <span>Authenticated</span>
+                    </div>
+                </div>
+                <div class="key-info-card">
+                    <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M9 14.5A5.5 5.5 0 109 3.5a5.5 5.5 0 000 11zm0 0l2.5 2.5M13.5 14l2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                    <span>Uses your <strong>RSA public key</strong> (encrypt) + <strong>RSA private key</strong> (sign) — both from registration, applied automatically</span>
+                </div>
+                <form action="{{ url_for('encrypt_sign_route') }}" method="POST" enctype="multipart/form-data" class="tool-form">
+                    <div class="form-group">
+                        <label>File to Encrypt &amp; Sign</label>
+                        <div class="file-drop">
+                            <div class="file-drop-icon">
+                                <svg viewBox="0 0 40 40" fill="none">
+                                    <path d="M20 26V14M14 20l6-6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <rect x="6" y="6" width="28" height="28" rx="4" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 3"/>
+                                    <path d="M28 27l3-1.5 3-3a1.5 1.5 0 00-2-2l-3 3-1.5 3z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                                </svg>
+                            </div>
+                            <p class="file-drop-text">Drop file here or <span>browse</span></p>
+                            <p class="file-drop-hint" id="esFileName">Any file type supported</p>
+                        </div>
+                            <input type="file" id="esFile" name="file" required style="display:none;" onchange="showFileName(this, 'esFileName')">
+                    </div>
+                    <button type="submit" class="btn-primary full">
+                        <svg viewBox="0 0 20 20" fill="none">
+                            <rect x="3" y="9" width="10" height="8" rx="2" stroke="currentColor" stroke-width="1.5"/>
+                            <path d="M6 9V7a4 4 0 018 0v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            <path d="M14 14l2-1 2-2a1 1 0 00-1.4-1.4L15 12l-1 2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+                        </svg>
+                        Encrypt, Sign &amp; Download .encsig
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Panel: Decrypt + Verify -->
+        <div class="tool-panel" id="tab-dec-verify">
+            <div class="panel-inner">
+                <div class="panel-info">
+                    <h3>Decrypt + Verify File</h3>
+                    <p>Upload an <code>.encsig</code> file and enter the <strong>sender's username</strong>. Their RSA public key is used to verify the signature and decrypt the file.</p>
+                    <div class="algo-badge">
+                        <span>RSA-PSS Verify</span>
+                        <span>ChaCha20-Poly1305</span>
+                        <span>Sender's RSA Public Key</span>
+                    </div>
+                </div>
+                <div class="key-info-card">
+                    <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M5 10l4 4 6-7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <span>Sender's <strong>RSA public key</strong> is fetched by username — used for both RSA-PSS verification and decryption</span>
+                </div>
+                <form class="tool-form" id="decVerifyForm">
+                    <div class="form-group">
+                        <label for="dvSender">Sender's Username</label>
+                        <div class="input-wrapper">
+                            <svg class="input-icon" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="3.5" stroke="currentColor" stroke-width="1.5"/><path d="M3 17c0-3.314 3.134-6 7-6s7 2.686 7 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                            <input type="text" id="dvSender" name="sender_username" placeholder="Enter the sender's username" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Encrypted+Signed File (.encsig)</label>
+                        <div class="file-drop">
+                            <div class="file-drop-icon">
+                                <svg viewBox="0 0 40 40" fill="none">
+                                    <path d="M20 14v12M14 20l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <rect x="6" y="6" width="28" height="28" rx="4" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 3"/>
+                                    <path d="M12 13l3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </div>
+                            <p class="file-drop-text">Drop .encsig file here or <span>browse</span></p>
+                            <p class="file-drop-hint" id="dvFileName">Accepts .encsig files</p>
+                        </div>
+                            <input type="file" id="dvFile" name="file" required style="display:none;" onchange="showFileName(this, 'dvFileName')">
+                    </div>
+                    <button type="button" class="btn-accent full" onclick="decryptAndVerify()">
+                        <svg viewBox="0 0 20 20" fill="none">
+                            <rect x="3" y="9" width="10" height="8" rx="2" stroke="currentColor" stroke-width="1.5"/>
+                            <path d="M6 9V7a4 4 0 018 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            <path d="M13 14l2 2 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Verify &amp; Decrypt
+                    </button>
+                    <div class="verify-result hidden" id="dvResult"></div>
+                </form>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // Tab switching — uses style.display directly, immune to CSS overrides
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tool-panel').forEach(p => p.style.display = 'none');
+                btn.classList.add('active');
+                document.getElementById('tab-' + btn.dataset.tab).style.display = 'block';
+            });
+        });
+
+        // On load: hide all panels, show only the active one
+        document.querySelectorAll('.tool-panel').forEach(p => p.style.display = 'none');
+        document.querySelector('.tool-panel.active').style.display = 'block';
+
+        function showFileName(input, labelId) {
+            const label = document.getElementById(labelId);
+            if (input.files && input.files[0]) {
+                const name = input.files[0].name;
+                const size = (input.files[0].size / 1024).toFixed(1);
+                label.textContent = name + ' (' + size + ' KB)';
+                label.style.color = 'var(--accent)';
+                const dropZone = input.closest('.file-drop');
+                if (dropZone) dropZone.classList.add('has-file');
+            }
+        }
+
+        function togglePassword(id, btn) {
+            const input = document.getElementById(id);
+            const isHidden = input.type === 'password';
+            input.type = isHidden ? 'text' : 'password';
+            btn.classList.toggle('active', isHidden);
+        }
+
+        // File drop zones: click to browse, drag-and-drop
+        document.querySelectorAll('.file-drop').forEach(zone => {
+            // Click -> open file picker for the associated hidden input
+            zone.addEventListener('click', () => {
+                // Find the input: either inside the zone's parent form-group, or next sibling
+                const group = zone.closest('.form-group');
+                const input = group ? group.querySelector('input[type=file]') : null;
+                if (input) input.click();
+            });
+
+            zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+            zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+            zone.addEventListener('drop', e => {
+                e.preventDefault();
+                zone.classList.remove('drag-over');
+                const group = zone.closest('.form-group');
+                const input = group ? group.querySelector('input[type=file]') : null;
+                const hintEl = zone.querySelector('.file-drop-hint');
+                if (input && hintEl && e.dataTransfer.files[0]) {
+                    const dt = new DataTransfer();
+                    dt.items.add(e.dataTransfer.files[0]);
+                    input.files = dt.files;
+                    showFileName(input, hintEl.id);
+                }
+            });
+        });
+
+        // Decrypt File
+            const form = document.getElementById('decryptForm');
+            const sender = document.getElementById('decSender').value.trim();
+            const fileInput = document.getElementById('decFile');
+            const result = document.getElementById('decryptResult');
+            if (!sender) { alert('Please enter the sender\'s username.'); return; }
+            if (!fileInput.files[0]) { alert('Please select an .enc file.'); return; }
+
+            const formData = new FormData(form);
+            result.classList.remove('hidden', 'valid', 'invalid', 'warning');
+            result.innerHTML = '<div class="spinner"></div> Decrypting…';
+
+            try {
+                const res = await fetch("{{ url_for('decrypt_route') }}", { method: 'POST', body: formData });
+                if (res.ok) {
+                    const blob = await res.blob();
+                    const cd = res.headers.get('Content-Disposition') || '';
+                    const match = cd.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/i);
+                    const filename = match ? match[1].replace(/['"]/g, '') : 'decrypted_file';
+                    const url = URL.createObjectURL(blob);
+                    result.classList.add('valid');
+                    result.innerHTML = `<svg viewBox="0 0 20 20" fill="none"><path d="M5 10l4 4 6-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5"/></svg>
+                        <div><strong>Decrypted Successfully</strong><p>File decrypted using ${sender}'s public key.</p>
+                        <a class="download-link" href="${url}" download="${filename}">
+                            <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M10 3v10M5 13l5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            Download Decrypted File
+                        </a></div>`;
+                } else {
+                    const data = await res.json().catch(() => ({}));
+                    result.classList.add('invalid');
+                    result.innerHTML = `<svg viewBox="0 0 20 20" fill="none"><path d="M6 6l8 8M14 6l-8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5"/></svg>
+                        <div><strong>Decryption Failed</strong><p>${data.error || 'Wrong sender username or corrupted file.'}</p></div>`;
+                }
+            } catch(e) {
+                result.classList.add('invalid');
+                result.innerHTML = `<div><strong>Error</strong><p>Request failed. Please try again.</p></div>`;
+            }
+        }
+
+        async function decryptAndVerify() {
+            const fileInput = document.getElementById('dvFile');
+            const sender = document.getElementById('dvSender').value.trim();
+            if (!sender) { alert('Please enter the sender\'s username.'); return; }
+            if (!fileInput.files[0]) { alert('Please select an .encsig file.'); return; }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('sender_username', sender);
+
+            const result = document.getElementById('dvResult');
+            result.classList.remove('hidden', 'valid', 'invalid', 'warning');
+            result.innerHTML = '<div class="spinner"></div> Verifying signature &amp; decrypting…';
+
+            try {
+                const res = await fetch("{{ url_for('decrypt_verify_route') }}", { method: 'POST', body: formData });
+                const data = await res.json();
+
+                if (!data.success) {
+                    result.classList.add('invalid');
+                    result.innerHTML = `
+                        <svg viewBox="0 0 20 20" fill="none"><path d="M6 6l8 8M14 6l-8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5"/></svg>
+                        <div><strong>Decryption Failed</strong><p>${data.error || 'Could not decrypt the file. It may be corrupted or use a different key.'}</p></div>`;
+                    return;
+                }
+
+                if (data.sig_valid) {
+                    result.classList.add('valid');
+                    result.innerHTML = `
+                        <svg viewBox="0 0 20 20" fill="none"><path d="M5 10l4 4 6-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5"/></svg>
+                        <div>
+                            <strong>Signature Valid — File Decrypted</strong>
+                            <p>The RSA-PSS signature is authentic. File has not been tampered with.</p>
+                            <a class="download-link" href="${data.download_url}">
+                                <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M10 3v10M5 13l5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                Download Decrypted File
+                            </a>
+                        </div>`;
+                } else {
+                    result.classList.add('warning');
+                    result.innerHTML = `
+                        <svg viewBox="0 0 20 20" fill="none"><path d="M10 6v5M10 14h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5"/></svg>
+                        <div>
+                            <strong>Signature Invalid — Decrypted Anyway</strong>
+                            <p>RSA-PSS signature did not match. The file may be tampered or from a different user. Proceed with caution.</p>
+                            <a class="download-link" href="${data.download_url}">
+                                <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M10 3v10M5 13l5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                Download Anyway
+                            </a>
+                        </div>`;
+                }
+            } catch(e) {
+                result.classList.add('invalid');
+                result.innerHTML = `<div><strong>Error</strong><p>Request failed. Please try again.</p></div>`;
+            }
+        }
+    </script>
+</body>
+</html>
