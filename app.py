@@ -103,7 +103,8 @@ def encrypt_route():
     file.save(file_path)
     # Use the user's RSA public key as the password for PBKDF2 derivation
     out_path = enc_dec_functions.encrypt_file(file_path, current_user.public_key)
-    return send_file(out_path, as_attachment=True)
+    download_name = os.path.splitext(file.filename)[0] + ".bin"
+    return send_file(out_path, as_attachment=True, download_name=download_name)
 
 @app.route('/decrypt', methods=['POST'])
 @login_required
@@ -176,7 +177,8 @@ def encrypt_sign_route():
         current_user.public_key,
         current_user.private_key
     )
-    return send_file(out_path, as_attachment=True)
+    download_name = os.path.splitext(file.filename)[0] + ".bin"
+    return send_file(out_path, as_attachment=True, download_name=download_name)
 
 @app.route('/decrypt-verify', methods=['POST'])
 @login_required

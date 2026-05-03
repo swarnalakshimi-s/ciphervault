@@ -1,0 +1,100 @@
+2026-05-02T08:45:35.04452119Z ==> Running build command 'pip install -r requirements.txt'...
+2026-05-02T08:45:35.761005766Z Collecting absl-py==2.1.0 (from -r requirements.txt (line 1))
+2026-05-02T08:45:35.852510447Z   Downloading absl_py-2.1.0-py3-none-any.whl.metadata (2.3 kB)
+2026-05-02T08:45:35.87470521Z Collecting asteval==1.0.5 (from -r requirements.txt (line 2))
+2026-05-02T08:45:35.878827575Z   Downloading asteval-1.0.5-py3-none-any.whl.metadata (6.2 kB)
+2026-05-02T08:45:35.895113178Z Collecting astunparse==1.6.3 (from -r requirements.txt (line 3))
+2026-05-02T08:45:35.898714749Z   Downloading astunparse-1.6.3-py2.py3-none-any.whl.metadata (4.4 kB)
+2026-05-02T08:45:35.956115545Z Collecting bcrypt==5.0.0 (from -r requirements.txt (line 4))
+2026-05-02T08:45:35.960353633Z   Downloading bcrypt-5.0.0-cp39-abi3-manylinux_2_34_x86_64.whl.metadata (10 kB)
+2026-05-02T08:45:35.976915673Z Collecting blinker==1.9.0 (from -r requirements.txt (line 5))
+2026-05-02T08:45:35.980108484Z   Downloading blinker-1.9.0-py3-none-any.whl.metadata (1.6 kB)
+2026-05-02T08:45:36.001010984Z Collecting certifi==2024.2.2 (from -r requirements.txt (line 6))
+2026-05-02T08:45:36.005410016Z   Downloading certifi-2024.2.2-py3-none-any.whl.metadata (2.2 kB)
+2026-05-02T08:45:36.108465061Z Collecting cffi==2.0.0 (from -r requirements.txt (line 7))
+2026-05-02T08:45:36.112691078Z   Downloading cffi-2.0.0-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (2.6 kB)
+2026-05-02T08:45:36.209872103Z Collecting charset-normalizer==3.3.2 (from -r requirements.txt (line 8))
+2026-05-02T08:45:36.21449325Z   Downloading charset_normalizer-3.3.2-py3-none-any.whl.metadata (33 kB)
+2026-05-02T08:45:36.240940181Z Collecting click==8.3.3 (from -r requirements.txt (line 9))
+2026-05-02T08:45:36.244189373Z   Downloading click-8.3.3-py3-none-any.whl.metadata (2.6 kB)
+2026-05-02T08:45:36.261483952Z Collecting colorama==0.4.6 (from -r requirements.txt (line 10))
+2026-05-02T08:45:36.264711014Z   Downloading colorama-0.4.6-py2.py3-none-any.whl.metadata (17 kB)
+2026-05-02T08:45:36.32842883Z Collecting contourpy==1.2.1 (from -r requirements.txt (line 11))
+2026-05-02T08:45:36.33390861Z   Downloading contourpy-1.2.1.tar.gz (13.5 MB)
+2026-05-02T08:45:36.441872099Z      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 13.5/13.5 MB 134.9 MB/s  0:00:00
+2026-05-02T08:45:36.612587839Z   Installing build dependencies: started
+2026-05-02T08:45:37.450071445Z   Installing build dependencies: finished with status 'done'
+2026-05-02T08:45:37.450700031Z   Getting requirements to build wheel: started
+2026-05-02T08:45:37.711528848Z   Getting requirements to build wheel: finished with status 'done'
+2026-05-02T08:45:37.713110588Z   Installing backend dependencies: started
+2026-05-02T08:45:38.31943325Z   Installing backend dependencies: finished with status 'done'
+2026-05-02T08:45:38.320395634Z   Preparing metadata (pyproject.toml): started
+2026-05-02T08:46:31.482391726Z   Preparing metadata (pyproject.toml): finished with status 'done'
+2026-05-02T08:46:32.094815062Z Collecting cryptography==47.0.0 (from -r requirements.txt (line 12))
+2026-05-02T08:46:32.122867203Z   Downloading cryptography-47.0.0-cp311-abi3-manylinux_2_34_x86_64.whl.metadata (4.5 kB)
+2026-05-02T08:46:32.692868124Z Collecting cycler==0.12.1 (from -r requirements.txt (line 13))
+2026-05-02T08:46:32.69744728Z   Downloading cycler-0.12.1-py3-none-any.whl.metadata (3.8 kB)
+2026-05-02T08:46:32.804869415Z Collecting dill==0.3.9 (from -r requirements.txt (line 14))
+2026-05-02T08:46:32.808852966Z   Downloading dill-0.3.9-py3-none-any.whl.metadata (10 kB)
+2026-05-02T08:46:32.974673863Z Collecting Flask==3.1.3 (from -r requirements.txt (line 15))
+2026-05-02T08:46:32.999942504Z   Downloading flask-3.1.3-py3-none-any.whl.metadata (3.2 kB)
+2026-05-02T08:46:33.129595283Z Collecting Flask-Bcrypt==1.0.1 (from -r requirements.txt (line 16))
+2026-05-02T08:46:33.133490022Z   Downloading Flask_Bcrypt-1.0.1-py3-none-any.whl.metadata (2.6 kB)
+2026-05-02T08:46:33.294548658Z Collecting Flask-Login==0.6.3 (from -r requirements.txt (line 17))
+2026-05-02T08:46:33.298764785Z   Downloading Flask_Login-0.6.3-py3-none-any.whl.metadata (5.8 kB)
+2026-05-02T08:46:33.410503089Z Collecting Flask-SQLAlchemy==3.1.1 (from -r requirements.txt (line 18))
+2026-05-02T08:46:33.414454509Z   Downloading flask_sqlalchemy-3.1.1-py3-none-any.whl.metadata (3.4 kB)
+2026-05-02T08:46:33.51498606Z Collecting flatbuffers==24.3.25 (from -r requirements.txt (line 19))
+2026-05-02T08:46:33.51895078Z   Downloading flatbuffers-24.3.25-py2.py3-none-any.whl.metadata (850 bytes)
+2026-05-02T08:46:34.1507924Z Collecting fonttools==4.51.0 (from -r requirements.txt (line 20))
+2026-05-02T08:46:34.155632292Z   Downloading fonttools-4.51.0-py3-none-any.whl.metadata (159 kB)
+2026-05-02T08:46:34.677345767Z Collecting gast==0.5.4 (from -r requirements.txt (line 21))
+2026-05-02T08:46:34.707591545Z   Downloading gast-0.5.4-py3-none-any.whl.metadata (1.3 kB)
+2026-05-02T08:46:35.057093741Z Collecting google-pasta==0.2.0 (from -r requirements.txt (line 22))
+2026-05-02T08:46:35.061901853Z   Downloading google_pasta-0.2.0-py3-none-any.whl.metadata (814 bytes)
+2026-05-02T08:46:36.044434619Z Collecting greenlet==3.5.0 (from -r requirements.txt (line 23))
+2026-05-02T08:46:36.130675027Z   Downloading greenlet-3.5.0-cp314-cp314-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl.metadata (3.7 kB)
+2026-05-02T08:46:36.858949792Z Collecting grpcio==1.62.1 (from -r requirements.txt (line 24))
+2026-05-02T08:46:36.86439505Z   Downloading grpcio-1.62.1.tar.gz (26.3 MB)
+2026-05-02T08:46:37.757157028Z      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 26.3/26.3 MB 29.3 MB/s  0:00:00
+2026-05-02T08:46:40.296307943Z   Installing build dependencies: started
+2026-05-02T08:46:42.30536996Z   Installing build dependencies: finished with status 'done'
+2026-05-02T08:46:42.407606904Z   Getting requirements to build wheel: started
+2026-05-02T08:46:42.958554841Z   Getting requirements to build wheel: finished with status 'error'
+2026-05-02T08:46:42.964097242Z   error: subprocess-exited-with-error
+2026-05-02T08:46:42.964119892Z   
+2026-05-02T08:46:42.964125382Z   × Getting requirements to build wheel did not run successfully.
+2026-05-02T08:46:42.964130892Z   │ exit code: 1
+2026-05-02T08:46:42.964135612Z   ╰─> [23 lines of output]
+2026-05-02T08:46:42.964142513Z       Traceback (most recent call last):
+2026-05-02T08:46:42.964147443Z         File "/opt/render/project/src/.venv/lib/python3.14/site-packages/pip/_vendor/pyproject_hooks/_in_process/_in_process.py", line 389, in <module>
+2026-05-02T08:46:42.964151943Z           main()
+2026-05-02T08:46:42.964156083Z           ~~~~^^
+2026-05-02T08:46:42.964160243Z         File "/opt/render/project/src/.venv/lib/python3.14/site-packages/pip/_vendor/pyproject_hooks/_in_process/_in_process.py", line 373, in main
+2026-05-02T08:46:42.964165093Z           json_out["return_val"] = hook(**hook_input["kwargs"])
+2026-05-02T08:46:42.964169433Z                                    ~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+2026-05-02T08:46:42.964174793Z         File "/opt/render/project/src/.venv/lib/python3.14/site-packages/pip/_vendor/pyproject_hooks/_in_process/_in_process.py", line 143, in get_requires_for_build_wheel
+2026-05-02T08:46:42.964178994Z           return hook(config_settings)
+2026-05-02T08:46:42.964183244Z         File "/tmp/pip-build-env-hhcgtaof/overlay/lib/python3.14/site-packages/setuptools/build_meta.py", line 333, in get_requires_for_build_wheel
+2026-05-02T08:46:42.964188044Z           return self._get_build_requires(config_settings, requirements=[])
+2026-05-02T08:46:42.964192144Z                  ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-05-02T08:46:42.964197074Z         File "/tmp/pip-build-env-hhcgtaof/overlay/lib/python3.14/site-packages/setuptools/build_meta.py", line 301, in _get_build_requires
+2026-05-02T08:46:42.964201484Z           self.run_setup()
+2026-05-02T08:46:42.964205814Z           ~~~~~~~~~~~~~~^^
+2026-05-02T08:46:42.964210554Z         File "/tmp/pip-build-env-hhcgtaof/overlay/lib/python3.14/site-packages/setuptools/build_meta.py", line 520, in run_setup
+2026-05-02T08:46:42.964215455Z           super().run_setup(setup_script=setup_script)
+2026-05-02T08:46:42.964219805Z           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-05-02T08:46:42.964224595Z         File "/tmp/pip-build-env-hhcgtaof/overlay/lib/python3.14/site-packages/setuptools/build_meta.py", line 317, in run_setup
+2026-05-02T08:46:42.964227705Z           exec(code, locals())
+2026-05-02T08:46:42.964230635Z           ~~~~^^^^^^^^^^^^^^^^
+2026-05-02T08:46:42.964233685Z         File "<string>", line 40, in <module>
+2026-05-02T08:46:42.964236615Z       ModuleNotFoundError: No module named 'pkg_resources'
+2026-05-02T08:46:42.964239605Z       [end of output]
+2026-05-02T08:46:42.964242585Z   
+2026-05-02T08:46:42.964246315Z   note: This error originates from a subprocess, and is likely not a problem with pip.
+2026-05-02T08:46:43.224618001Z 
+2026-05-02T08:46:43.224646431Z [notice] A new release of pip is available: 25.3 -> 26.1
+2026-05-02T08:46:43.224652872Z [notice] To update, run: pip install --upgrade pip
+2026-05-02T08:46:43.224658562Z ERROR: Failed to build 'grpcio' when getting requirements to build wheel
+2026-05-02T08:46:43.746860589Z ==> Build failed 😞
+2026-05-02T08:46:43.74688121Z ==> Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys
