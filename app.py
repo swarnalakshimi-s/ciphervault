@@ -98,11 +98,14 @@ def my_keys():
 @login_required
 def encrypt_route():
     file = request.files['file']
+    recipient_username = request.form.get('recipient_username', '').strip()
+    recipient = User.query.filter_by(username=recipient_username).first()
+    if not recipient:
+        return jsonify({"error": f"No user found with username '{recipient_username}'."}), 404
     os.makedirs("uploads", exist_ok=True)
     file_path = os.path.join("uploads", file.filename)
     file.save(file_path)
-    # Use the user's RSA public key as the password for PBKDF2 derivation
-    out_path = enc_dec_functions.encrypt_file(file_path, current_user.public_key)
+    out_path = enc_dec_functions.encrypt_file(file_path, recipient.public_key)
     download_name = os.path.splitext(file.filename)[0] + ".bin"
     return send_file(out_path, as_attachment=True, download_name=download_name)
 
@@ -110,19 +113,14 @@ def encrypt_route():
 @login_required
 def decrypt_route():
     file = request.files['file']
-    sender_username = request.form.get('sender_username', '').strip()
-
-    sender = User.query.filter_by(username=sender_username).first()
-    if not sender:
-        return jsonify({"error": f"No user found with username '{sender_username}'."}), 404
-
     os.makedirs("uploads", exist_ok=True)
     file_path = os.path.join("uploads", file.filename)
     file.save(file_path)
-
-    # Decrypt using the SENDER's public key (they encrypted it with their own key)
-    out_path = enc_dec_functions.decrypt_file(file_path, sender.public_key)
-    return send_file(out_path, as_attachment=True)
+    try:
+        out_path = enc_dec_functions.decrypt_file(file_path, current_user.private_key)
+        return send_file(out_path, as_attachment=True)
+    except Exception:
+        return jsonify({"error": "Decryption failed. This file was not encrypted for you."}), 400
 
 # ─── Sign / Verify (HMAC-SHA256, user supplies their private key string) ──────
 
@@ -169,12 +167,16 @@ def verify_file_route():
 @login_required
 def encrypt_sign_route():
     file = request.files['file']
+    recipient_username = request.form.get('recipient_username', '').strip()
+    recipient = User.query.filter_by(username=recipient_username).first()
+    if not recipient:
+        return jsonify({"error": f"No user found with username '{recipient_username}'."}), 404
     os.makedirs("uploads", exist_ok=True)
     file_path = os.path.join("uploads", file.filename)
     file.save(file_path)
     out_path = enc_dec_functions.encrypt_and_sign_file(
         file_path,
-        current_user.public_key,
+        recipient.public_key,
         current_user.private_key
     )
     download_name = os.path.splitext(file.filename)[0] + ".bin"
@@ -196,7 +198,8 @@ def decrypt_verify_route():
     try:
         out_path, sig_valid = enc_dec_functions.decrypt_and_verify_file(
             file_path,
-            sender.public_key   # SENDER's public key used for both decrypt and RSA-PSS verify
+            current_user.private_key,
+            sender.public_key
         )
         return jsonify({
             "success": True,
@@ -216,4 +219,4 @@ def download_temp(filename):
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    app.run(debug=True)
+    app.run(debug=False)

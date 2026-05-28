@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.idea/
+uploads/
+*.db
+instance/
+logs.txt
