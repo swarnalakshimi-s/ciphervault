@@ -6,7 +6,8 @@ import enc_dec_functions
 import os
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(app.instance_path, 'users.db')
+os.makedirs(app.instance_path, exist_ok=True)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'yoursecretkey')
 
 db = SQLAlchemy(app)
@@ -186,7 +187,8 @@ def download_temp(filename):
     return send_file(path, as_attachment=True)
 
 
+with app.app_context():
+    db.create_all()
+
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-    app.run(debug=True)
+    app.run(debug=False, threaded=True, port=8080, host='127.0.0.1')
