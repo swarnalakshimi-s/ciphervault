@@ -7,7 +7,7 @@ import os
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
-app.config['SECRET_KEY'] = 'yoursecretkey'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'yoursecretkey')
 
 db = SQLAlchemy(app)
 bcrypt = Bcrypt(app)
@@ -20,8 +20,8 @@ class User(db.Model, UserMixin):
     id          = db.Column(db.Integer, primary_key=True)
     username    = db.Column(db.String(150), unique=True, nullable=False)
     password    = db.Column(db.String(150), nullable=False)
-    private_key = db.Column(db.Text, nullable=True)   # RSA private key PEM
-    public_key  = db.Column(db.Text, nullable=True)   # RSA public key PEM
+    private_key = db.Column(db.Text, nullable=True)
+    public_key  = db.Column(db.Text, nullable=True)
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -40,12 +40,8 @@ def register():
         if existing:
             flash('Username already taken. Please choose a different one.')
             return render_template('register.html')
-
         hashed_pw = bcrypt.generate_password_hash(request.form['password']).decode('utf-8')
-
-        # Generate RSA key pair at registration time
         private_pem, public_pem = enc_dec_functions.generate_rsa_keypair()
-
         new_user = User(
             username=request.form['username'],
             password=hashed_pw,
@@ -81,33 +77,36 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
-# ─── Key Info Endpoint ────────────────────────────────────────────────────────
-
 @app.route('/my-keys')
 @login_required
 def my_keys():
-    """Return current user's public key (safe to expose) for display in UI."""
     return jsonify({
         "public_key": current_user.public_key,
         "has_private_key": current_user.private_key is not None
     })
 
-# ─── Plain Encrypt / Decrypt (uses public key as symmetric password) ──────────
+# ─── Encrypt (with RECIPIENT's public key) ───────────────────────────────────
 
 @app.route('/encrypt', methods=['POST'])
 @login_required
 def encrypt_route():
     file = request.files['file']
     recipient_username = request.form.get('recipient_username', '').strip()
+
     recipient = User.query.filter_by(username=recipient_username).first()
     if not recipient:
         return jsonify({"error": f"No user found with username '{recipient_username}'."}), 404
+
     os.makedirs("uploads", exist_ok=True)
     file_path = os.path.join("uploads", file.filename)
     file.save(file_path)
+
+    # Encrypt with RECIPIENT's public key — only they can decrypt
     out_path = enc_dec_functions.encrypt_file(file_path, recipient.public_key)
     download_name = os.path.splitext(file.filename)[0] + ".bin"
     return send_file(out_path, as_attachment=True, download_name=download_name)
+
+# ─── Decrypt (with MY own private key) ───────────────────────────────────────
 
 @app.route('/decrypt', methods=['POST'])
 @login_required
@@ -116,64 +115,31 @@ def decrypt_route():
     os.makedirs("uploads", exist_ok=True)
     file_path = os.path.join("uploads", file.filename)
     file.save(file_path)
+
+    # Decrypt using MY OWN private key — only works if file was encrypted for me
     try:
         out_path = enc_dec_functions.decrypt_file(file_path, current_user.private_key)
         return send_file(out_path, as_attachment=True)
     except Exception:
         return jsonify({"error": "Decryption failed. This file was not encrypted for you."}), 400
 
-# ─── Sign / Verify (HMAC-SHA256, user supplies their private key string) ──────
-
-@app.route('/sign', methods=['POST'])
-@login_required
-def sign_file_route():
-    file = request.files['file']
-    os.makedirs("uploads", exist_ok=True)
-    file_path = os.path.join("uploads", file.filename)
-    file.save(file_path)
-    # Use the stored RSA private key PEM as the HMAC key
-    out_path = enc_dec_functions.sign_file(file_path, current_user.private_key)
-    return send_file(out_path, as_attachment=True)
-
-@app.route('/verify', methods=['POST'])
-@login_required
-def verify_file_route():
-    file = request.files['file']
-    sig_file = request.files['signature_file']
-    sender_username = request.form.get('sender_username', '').strip()
-
-    sender = User.query.filter_by(username=sender_username).first()
-    if not sender:
-        return jsonify({"valid": False, "error": f"No user found with username '{sender_username}'."}), 404
-
-    os.makedirs("uploads", exist_ok=True)
-    file_path = os.path.join("uploads", file.filename)
-    sig_path  = os.path.join("uploads", sig_file.filename)
-    file.save(file_path)
-    sig_file.save(sig_path)
-
-    with open(file_path, "rb") as f:
-        data = f.read()
-    with open(sig_path, "r") as f:
-        signature = f.read().strip()
-
-    # Verify using the SENDER's private key (HMAC symmetric — same key signs and verifies)
-    valid = enc_dec_functions.verify_signature(data, signature, sender.private_key)
-    return jsonify({"valid": valid})
-
-# ─── Encrypt + Sign (combined, RSA-PSS) ──────────────────────────────────────
+# ─── Encrypt + Sign ──────────────────────────────────────────────────────────
 
 @app.route('/encrypt-sign', methods=['POST'])
 @login_required
 def encrypt_sign_route():
     file = request.files['file']
     recipient_username = request.form.get('recipient_username', '').strip()
+
     recipient = User.query.filter_by(username=recipient_username).first()
     if not recipient:
         return jsonify({"error": f"No user found with username '{recipient_username}'."}), 404
+
     os.makedirs("uploads", exist_ok=True)
     file_path = os.path.join("uploads", file.filename)
     file.save(file_path)
+
+    # Encrypt with RECIPIENT's public key, sign with MY private key
     out_path = enc_dec_functions.encrypt_and_sign_file(
         file_path,
         recipient.public_key,
@@ -181,6 +147,8 @@ def encrypt_sign_route():
     )
     download_name = os.path.splitext(file.filename)[0] + ".bin"
     return send_file(out_path, as_attachment=True, download_name=download_name)
+
+# ─── Decrypt + Verify ────────────────────────────────────────────────────────
 
 @app.route('/decrypt-verify', methods=['POST'])
 @login_required
@@ -195,7 +163,9 @@ def decrypt_verify_route():
     os.makedirs("uploads", exist_ok=True)
     file_path = os.path.join("uploads", file.filename)
     file.save(file_path)
+
     try:
+        # Decrypt with MY private key, verify with SENDER's public key
         out_path, sig_valid = enc_dec_functions.decrypt_and_verify_file(
             file_path,
             current_user.private_key,
@@ -207,7 +177,7 @@ def decrypt_verify_route():
             "download_url": url_for('download_temp', filename=os.path.basename(out_path))
         })
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 400
+        return jsonify({"success": False, "error": "Decryption failed. This file was not encrypted for you."}), 400
 
 @app.route('/download-temp/<filename>')
 @login_required
@@ -219,4 +189,4 @@ def download_temp(filename):
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    app.run(debug=False)
+    app.run(debug=True)
