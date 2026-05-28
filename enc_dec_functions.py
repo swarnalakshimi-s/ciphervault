@@ -1,6 +1,5 @@
 import hashlib
 import os
-import json
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.backends import default_backend
@@ -22,65 +21,6 @@ def generate_rsa_keypair():
         format=serialization.PublicFormat.SubjectPublicKeyInfo
     ).decode("utf-8")
     return private_pem, public_pem
-
-
-# ─── Legacy Scramble ──────────────────────────────────────────────────────────
-
-def rotl(val, shift):
-    return ((val << shift) & 0xFF) | (val >> (8 - shift))
-
-def rotr(val, shift):
-    return (val >> shift) | ((val << (8 - shift)) & 0xFF)
-
-def derive_subkeys(key, rounds=3):
-    return [hashlib.sha256((key + str(i)).encode("utf-8")).digest() for i in range(rounds)]
-
-def scramble(data, key, rounds=3):
-    subkeys = derive_subkeys(key, rounds)
-    result = bytearray(data)
-    for r in range(rounds):
-        key_bytes = subkeys[r]
-        for i in range(len(result)):
-            k = key_bytes[i % len(key_bytes)]
-            val = result[i] ^ k
-            val = rotl(val, k % 8)
-            val ^= (k & 0xAA)
-            result[i] = val
-    return result
-
-def descramble(data, key, rounds=3):
-    subkeys = derive_subkeys(key, rounds)
-    result = bytearray(data)
-    for r in reversed(range(rounds)):
-        key_bytes = subkeys[r]
-        for i in range(len(result)):
-            k = key_bytes[i % len(key_bytes)]
-            val = result[i] ^ (k & 0xAA)
-            val = rotr(val, k % 8)
-            val ^= k
-            result[i] = val
-    return result
-
-
-# ─── HMAC Signature ──────────────────────────────────────────────────────────
-
-def sign_data(data: bytes, private_key: str) -> str:
-    digest = hashlib.sha256(data).hexdigest()
-    return hashlib.sha256((digest + private_key).encode("utf-8")).hexdigest()
-
-def sign_file(file_path: str, private_key: str) -> str:
-    with open(file_path, "rb") as f:
-        data = f.read()
-    signature = sign_data(data, private_key)
-    out_path = file_path + ".sig"
-    with open(out_path, "w") as f:
-        f.write(signature)
-    return out_path
-
-def verify_signature(data: bytes, signature: str, private_key: str) -> bool:
-    digest = hashlib.sha256(data).hexdigest()
-    expected = hashlib.sha256((digest + private_key).encode("utf-8")).hexdigest()
-    return signature == expected
 
 
 # ─── RSA-PSS Helpers ─────────────────────────────────────────────────────────
@@ -107,13 +47,17 @@ def derive_key(password: str, salt: bytes) -> bytes:
 
 # ─── Encrypt / Decrypt ───────────────────────────────────────────────────────
 #
-# Payload format: [2 bytes: name_len][name_len bytes: original filename][file data]
-# Output format:  [16 bytes: salt][12 bytes: nonce][ciphertext]
-# File extension: .bin  (Gmail/phone compatible)
+# SECURITY MODEL:
+#   encrypt_file(file, recipient_public_key)  → only recipient's private key can decrypt
+#   decrypt_file(file, my_private_key)        → only the intended recipient can decrypt
+#
+# Payload format: [2 bytes: name_len][name_len bytes: filename][file data]
+# File format:    [16 bytes: salt][12 bytes: nonce][ciphertext]
 
-def encrypt_file(file_path: str, password: str) -> str:
+def encrypt_file(file_path: str, recipient_public_key_pem: str) -> str:
+    """Encrypt with RECIPIENT's public key — only they can decrypt with their private key."""
     salt = os.urandom(16)
-    key = derive_key(password, salt)
+    key = derive_key(recipient_public_key_pem, salt)
     nonce = os.urandom(12)
     chacha = ChaCha20Poly1305(key)
     with open(file_path, "rb") as f:
@@ -127,11 +71,19 @@ def encrypt_file(file_path: str, password: str) -> str:
     return out_path
 
 
-def decrypt_file(file_path: str, password: str) -> str:
+def decrypt_file(file_path: str, my_private_key_pem: str) -> str:
+    """Decrypt using MY OWN private key — only works if file was encrypted for me."""
+    # Derive the symmetric key using my public key (derived from my private key)
+    private_key = serialization.load_pem_private_key(my_private_key_pem.encode("utf-8"), password=None, backend=default_backend())
+    my_public_key_pem = private_key.public_key().public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    ).decode("utf-8")
+
     with open(file_path, "rb") as f:
         raw = f.read()
     salt, nonce, ciphertext = raw[:16], raw[16:28], raw[28:]
-    key = derive_key(password, salt)
+    key = derive_key(my_public_key_pem, salt)
     chacha = ChaCha20Poly1305(key)
     payload = chacha.decrypt(nonce, ciphertext, None)
     name_len = int.from_bytes(payload[:2], "big")
@@ -145,11 +97,18 @@ def decrypt_file(file_path: str, password: str) -> str:
 
 # ─── Encrypt + Sign / Decrypt + Verify ───────────────────────────────────────
 #
-# Bundle format: [4 bytes: sig_len][sig_len bytes: RSA sig][encrypted blob]
+# SECURITY MODEL:
+#   encrypt_and_sign_file(file, recipient_public_key, sender_private_key)
+#     → encrypted for recipient only, signed by sender
+#   decrypt_and_verify_file(file, my_private_key, sender_public_key)
+#     → only recipient can decrypt, verify sender's signature
+#
+# Bundle format: [4 bytes: sig_len][sig_len bytes: RSA-PSS sig][encrypted blob]
 
-def encrypt_and_sign_file(file_path: str, public_key_pem: str, private_key_pem: str) -> str:
+def encrypt_and_sign_file(file_path: str, recipient_public_key_pem: str, sender_private_key_pem: str) -> str:
+    """Encrypt with RECIPIENT's public key, sign with SENDER's private key."""
     salt = os.urandom(16)
-    key = derive_key(public_key_pem, salt)
+    key = derive_key(recipient_public_key_pem, salt)
     nonce = os.urandom(12)
     chacha = ChaCha20Poly1305(key)
     with open(file_path, "rb") as f:
@@ -158,22 +117,33 @@ def encrypt_and_sign_file(file_path: str, public_key_pem: str, private_key_pem: 
     payload = len(original_name).to_bytes(2, "big") + original_name + data
     ciphertext = chacha.encrypt(nonce, payload, None)
     cipher_blob = salt + nonce + ciphertext
-    signature = rsa_sign_data(cipher_blob, private_key_pem)
+    signature = rsa_sign_data(cipher_blob, sender_private_key_pem)
     out_path = file_path + ".bin"
     with open(out_path, "wb") as f:
         f.write(len(signature).to_bytes(4, "big") + signature + cipher_blob)
     return out_path
 
 
-def decrypt_and_verify_file(file_path: str, public_key_pem: str) -> tuple:
+def decrypt_and_verify_file(file_path: str, my_private_key_pem: str, sender_public_key_pem: str) -> tuple:
+    """Decrypt with MY private key, verify signature with SENDER's public key."""
+    private_key = serialization.load_pem_private_key(my_private_key_pem.encode("utf-8"), password=None, backend=default_backend())
+    my_public_key_pem = private_key.public_key().public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    ).decode("utf-8")
+
     with open(file_path, "rb") as f:
         raw = f.read()
     sig_len = int.from_bytes(raw[:4], "big")
     signature = raw[4:4 + sig_len]
     cipher_blob = raw[4 + sig_len:]
-    sig_valid = rsa_verify_data(cipher_blob, signature, public_key_pem)
+
+    # Verify sender's signature
+    sig_valid = rsa_verify_data(cipher_blob, signature, sender_public_key_pem)
+
+    # Decrypt using my own public key (derived from my private key)
     salt, nonce, ciphertext = cipher_blob[:16], cipher_blob[16:28], cipher_blob[28:]
-    key = derive_key(public_key_pem, salt)
+    key = derive_key(my_public_key_pem, salt)
     chacha = ChaCha20Poly1305(key)
     payload = chacha.decrypt(nonce, ciphertext, None)
     name_len = int.from_bytes(payload[:2], "big")

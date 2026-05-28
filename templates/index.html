@@ -106,13 +106,11 @@
             <div class="panel-inner">
                 <div class="panel-info">
                     <h3>Encrypt File</h3>
-                    <p>Secure your file using <strong>ChaCha20-Poly1305</strong> with PBKDF2 key derivation.
-                       Your <strong>RSA public key</strong> (generated at registration) is used automatically
-                       as the symmetric password — no manual key input needed.</p>
+                    <p>Encrypt your file using <strong>ChaCha20-Poly1305</strong> with the <strong>recipient's RSA public key</strong>. Only the intended recipient can decrypt it with their private key.</p>
                     <div class="algo-badge">
                         <span>ChaCha20-Poly1305</span>
                         <span>PBKDF2-SHA256</span>
-                        <span>RSA Public Key</span>
+                        <span>Recipient's RSA Public Key</span>
                     </div>
                 </div>
                 <div class="key-info-card">
@@ -120,10 +118,16 @@
                         <path d="M9 14.5A5.5 5.5 0 109 3.5a5.5 5.5 0 000 11zm0 0l2.5 2.5M13.5 14l2 2"
                               stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                     </svg>
-                    <span>Encryption key: your <strong>RSA public key</strong> from registration
-                          (stored securely server-side)</span>
+                    <span>File is encrypted with <strong>recipient's public key</strong> — only they can decrypt it</span>
                 </div>
                 <form action="{{ url_for('encrypt_route') }}" method="POST" enctype="multipart/form-data" class="tool-form">
+                    <div class="form-group">
+                        <label for="encRecipient">Recipient's Username</label>
+                        <div class="input-wrapper">
+                            <svg class="input-icon" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="3.5" stroke="currentColor" stroke-width="1.5"/><path d="M3 17c0-3.314 3.134-6 7-6s7 2.686 7 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                            <input type="text" id="encRecipient" name="recipient_username" placeholder="Enter recipient's username" required>
+                        </div>
+                    </div>
                     <div class="form-group">
                         <label>File to Encrypt</label>
                         <div class="file-drop" id="encDrop">
@@ -157,27 +161,20 @@
             <div class="panel-inner">
                 <div class="panel-info">
                     <h3>Decrypt File</h3>
-                    <p>Restore an encrypted <code>.enc</code> file. Enter the <strong>sender's username</strong> — decryption uses their RSA public key, which was used to encrypt the file.</p>
+                    <p>Decrypt a <code>.bin</code> file encrypted for you. Your <strong>own private key</strong> is used automatically — no input needed. Only you can decrypt files sent to you.</p>
                     <div class="algo-badge">
                         <span>Authenticated Decrypt</span>
                         <span>Tamper Detection</span>
-                        <span>Sender's RSA Public Key</span>
+                        <span>Your RSA Private Key</span>
                     </div>
                 </div>
                 <div class="key-info-card">
                     <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M9 14.5A5.5 5.5 0 109 3.5a5.5 5.5 0 000 11zm0 0l2.5 2.5M13.5 14l2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-                    <span>The sender's <strong>RSA public key</strong> is looked up by username and used as the decryption key</span>
+                    <span>Decryption uses <strong>your own private key</strong> — only you can decrypt files sent to you</span>
                 </div>
-                <form class="tool-form" id="decryptForm">
+                <form action="{{ url_for('decrypt_route') }}" method="POST" enctype="multipart/form-data" class="tool-form">
                     <div class="form-group">
-                        <label for="decSender">Sender's Username</label>
-                        <div class="input-wrapper">
-                            <svg class="input-icon" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="3.5" stroke="currentColor" stroke-width="1.5"/><path d="M3 17c0-3.314 3.134-6 7-6s7 2.686 7 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-                            <input type="text" id="decSender" name="sender_username" placeholder="Enter the sender's username" required>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Encrypted File (.enc)</label>
+                        <label>Encrypted File (.bin)</label>
                         <div class="file-drop">
                             <div class="file-drop-icon">
                                 <svg viewBox="0 0 40 40" fill="none"><path d="M20 14v12M14 20l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><rect x="6" y="6" width="28" height="28" rx="4" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 3"/></svg>
@@ -187,11 +184,10 @@
                         </div>
                             <input type="file" id="decFile" name="file" required style="display:none;" onchange="showFileName(this, 'decFileName')">
                     </div>
-                    <button type="button" class="btn-accent full" onclick="decryptFile()">
+                    <button type="submit" class="btn-accent full">
                         <svg viewBox="0 0 20 20" fill="none"><path d="M3 10h14M10 4l7 6-7 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                         Decrypt & Download
                     </button>
-                    <div class="verify-result hidden" id="decryptResult"></div>
                 </form>
             </div>
         </div>
@@ -215,6 +211,13 @@
                     <span>Uses your <strong>RSA public key</strong> (encrypt) + <strong>RSA private key</strong> (sign) — both from registration, applied automatically</span>
                 </div>
                 <form action="{{ url_for('encrypt_sign_route') }}" method="POST" enctype="multipart/form-data" class="tool-form">
+                    <div class="form-group">
+                        <label for="esRecipient">Recipient's Username</label>
+                        <div class="input-wrapper">
+                            <svg class="input-icon" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="3.5" stroke="currentColor" stroke-width="1.5"/><path d="M3 17c0-3.314 3.134-6 7-6s7 2.686 7 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                            <input type="text" id="esRecipient" name="recipient_username" placeholder="Enter recipient's username" required>
+                        </div>
+                    </div>
                     <div class="form-group">
                         <label>File to Encrypt &amp; Sign</label>
                         <div class="file-drop">
@@ -358,45 +361,7 @@
         });
 
         // Decrypt + Verify (RSA-PSS combined tab)
-        async function decryptFile() {
-            const form = document.getElementById('decryptForm');
-            const sender = document.getElementById('decSender').value.trim();
-            const fileInput = document.getElementById('decFile');
-            const result = document.getElementById('decryptResult');
-            if (!sender) { alert('Please enter the sender\'s username.'); return; }
-            if (!fileInput.files[0]) { alert('Please select an .enc file.'); return; }
-
-            const formData = new FormData(form);
-            result.classList.remove('hidden', 'valid', 'invalid', 'warning');
-            result.innerHTML = '<div class="spinner"></div> Decrypting…';
-
-            try {
-                const res = await fetch("{{ url_for('decrypt_route') }}", { method: 'POST', body: formData });
-                if (res.ok) {
-                    const blob = await res.blob();
-                    const cd = res.headers.get('Content-Disposition') || '';
-                    const match = cd.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/i);
-                    const filename = match ? match[1].replace(/['"]/g, '') : 'decrypted_file';
-                    const url = URL.createObjectURL(blob);
-                    result.classList.add('valid');
-                    result.innerHTML = `<svg viewBox="0 0 20 20" fill="none"><path d="M5 10l4 4 6-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5"/></svg>
-                        <div><strong>Decrypted Successfully</strong><p>File decrypted using ${sender}'s public key.</p>
-                        <a class="download-link" href="${url}" download="${filename}">
-                            <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M10 3v10M5 13l5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                            Download Decrypted File
-                        </a></div>`;
-                } else {
-                    const data = await res.json().catch(() => ({}));
-                    result.classList.add('invalid');
-                    result.innerHTML = `<svg viewBox="0 0 20 20" fill="none"><path d="M6 6l8 8M14 6l-8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5"/></svg>
-                        <div><strong>Decryption Failed</strong><p>${data.error || 'Wrong sender username or corrupted file.'}</p></div>`;
-                }
-            } catch(e) {
-                result.classList.add('invalid');
-                result.innerHTML = `<div><strong>Error</strong><p>Request failed. Please try again.</p></div>`;
-            }
-        }
-
+        
         async function decryptAndVerify() {
             const fileInput = document.getElementById('dvFile');
             const sender = document.getElementById('dvSender').value.trim();
