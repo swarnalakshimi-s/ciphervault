@@ -7,6 +7,31 @@ from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.exceptions import InvalidSignature
 
+
+def _ml_salt(length: int = 16) -> bytes:
+    """Salt via LSTM+GAN entropy. Falls back to os.urandom on any error."""
+
+    try:
+        from ml_entropy import generate_ml_salt
+        print("[ENTROPY] ML salt used (LSTM+GAN)")
+        return generate_ml_salt(length)
+
+    except Exception as e:
+        print(f"[ENTROPY] Fallback to os.urandom for salt (reason: {e})")
+        return os.urandom(length)
+
+
+def _ml_rsa_seed() -> int:
+    """RSA seed via LSTM+GAN entropy. Falls back to os.urandom on any error."""
+    try:
+        from ml_entropy import get_entropy_seed_for_rsa
+        print("[ENTROPY] ML RSA seed used (LSTM+GAN)")
+        return get_entropy_seed_for_rsa()
+
+    except Exception as e:
+        print(f"[ENTROPY] Fallback to os.urandom for RSA seed (reason: {e})")
+        return int.from_bytes(os.urandom(64), "big")
+
 # ─── RSA Key Generation ───────────────────────────────────────────────────────
 
 def generate_rsa_keypair():
@@ -56,9 +81,9 @@ def derive_key(password: str, salt: bytes) -> bytes:
 
 def encrypt_file(file_path: str, recipient_public_key_pem: str) -> str:
     """Encrypt with RECIPIENT's public key — only they can decrypt with their private key."""
-    salt = os.urandom(16)
+    salt = _ml_salt(16)
+    nonce = _ml_salt(12)
     key = derive_key(recipient_public_key_pem, salt)
-    nonce = os.urandom(12)
     chacha = ChaCha20Poly1305(key)
     with open(file_path, "rb") as f:
         data = f.read()
@@ -107,9 +132,9 @@ def decrypt_file(file_path: str, my_private_key_pem: str) -> str:
 
 def encrypt_and_sign_file(file_path: str, recipient_public_key_pem: str, sender_private_key_pem: str) -> str:
     """Encrypt with RECIPIENT's public key, sign with SENDER's private key."""
-    salt = os.urandom(16)
+    salt = _ml_salt(16)
+    nonce = _ml_salt(12)
     key = derive_key(recipient_public_key_pem, salt)
-    nonce = os.urandom(12)
     chacha = ChaCha20Poly1305(key)
     with open(file_path, "rb") as f:
         data = f.read()
